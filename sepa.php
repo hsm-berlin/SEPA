@@ -5,28 +5,28 @@
  * @author Hans-Stefan Mueller
  * @copyright Copyright (C) 2019 Hans-Stefan Mueller
  * @license http://www.gnu.org/licenses/gpl-3.0.html GNU General Public License, version 3 or later
- * @version $Id: sepa.php 3606 2019-11-03 15:05:47Z root $
+ * @version $Id: Sepa.php 5502 2024-11-28 11:38:11Z root $
  * @link https://energie-m.de energie-m.de
  */
-//namespace EBICS;
-
-defined( '_JEXEC' ) or die( 'Restricted access' );
-
+namespace Ebics;
+\defined('_JEXEC') or die;
 
 
 /**
  * Library Klasse
  * EBICS - Electronic Banking Internet Communication Standard - http://www.ebics.de
- * SEPA-Datenformate nach SIO 20022 - Spezifikation der Deutschen Kreditwirtschaft
+ * SEPA-Datenformate nach ISO 20022 - Spezifikation der Deutschen Kreditwirtschaft
  * Version 2.7 vom 25.3.2013 (gueltig ab 4.11.2013)
  * @package library.ebics
  */
-class EBICS_Sepa {
+class Sepa {
 
 	/* Timestamp (Linux-Date) */
 	var $iTimeStamp;
 	/* Eindeutige ID der SEPA-Nachricht */
 	var $sMessageId;
+	/*    ...   */
+	var $sInitiatorName;
 	/* Payment Information <PmtInf> */
 	var $oPaymentInformation;
 	/* Transaction Information <DrctDbtTxInf> */
@@ -35,6 +35,9 @@ class EBICS_Sepa {
 	var $PaymentLclInstrm;
 	/* Summe aller Transaktionen */
 	var $TransactionCtrlSum;
+	/* ... */
+	var $execution_date;
+
 	/* XML-Dokument */
 	var $xml;
 	/* Zeichensatz fuer SEPA-Nachrichten */
@@ -52,11 +55,11 @@ class EBICS_Sepa {
 	/**
 	 * Konstruktor-Funktion
 	 */
-	function EBICS_Sepa( $InitiatorName ) {
+	public function __construct( $InitiatorName ) {
 		$this->iTimeStamp = time();
 		$this->sMessageId = 'ID-' . $this->iTimeStamp;	// Eindeutige ID
 		$this->sInitiatorName = $this->testString( $InitiatorName, 70 );
-        $this->oPaymentInformation = new stdClass();
+		$this->oPaymentInformation = new \stdClass();
 		$this->aTransactionInformation = array();
 		$this->TransactionCtrlSum = 0.0;
 	}
@@ -134,7 +137,7 @@ class EBICS_Sepa {
 	 */
 	function addTransaction($aDbtr, $aMndt, $dInstdAmt, $sRmtInf ) {
 		$bError = false;
-		$oTransaction = new stdClass();
+		$oTransaction = new \stdClass();
 		$oTransaction->InstdAmt = $dInstdAmt;		// Zahlbetrag
 		$oTransaction->MndtId = $aMndt['id'];			// Mandats-ID
 		$oTransaction->DtOfSgntr = $aMndt['datum'];	// Ausstellungsdatum des Mandats
@@ -168,7 +171,7 @@ class EBICS_Sepa {
 	 * @return string XML-Nachricht (UTF-8)
 	 */
 	function getDirectDebitInitiation() {
-		$this->xml = new XMLWriter();
+		$this->xml = new \XMLWriter();
 		$this->xml->openMemory();
 		$this->xml->startDocument( '1.0', 'UTF-8' );
 
@@ -183,7 +186,7 @@ class EBICS_Sepa {
 		$this->xml->writeElement( 'MsgId', $this->sMessageId );	// MessageIdentification: Eindeutige Nachrichten ID
 		$this->xml->writeElement( 'CreDtTm', date( 'Y-m-d\TH:i:s' ) . '.000Z' );   // 2010-11-21T09:30:47.000Z
 		$this->xml->writeElement( 'NbOfTxs', count( $this->aTransactionInformation ) );
-		$this->xml->writeElement( 'CtrlSum', number_format( $this->TransactionCtrlSum, 2, '.', '' ) );
+		$this->xml->writeElement( 'CtrlSum', number_format( floatval($this->TransactionCtrlSum), 2, '.', '' ) );
 		$this->xml->startElement( 'InitgPty' );	// InitiatingParty - auch abweichend vom Creditor
 		$this->xml->writeElement( 'Nm', $this->sInitiatorName );	// Name, max. 70 Zeichen
 		$this->xml->endElement(); // InitgPty
@@ -196,7 +199,7 @@ class EBICS_Sepa {
 		$this->xml->writeElement( 'PmtMtd', 'DD' );	// PaymentMethod (default: DD)
 		$this->xml->writeElement( 'BtchBookg', 'true' );	// BatchBooking: nur bei Vereinbarung als Einzelbuchung (default: true = Sammelbuchung)
 		$this->xml->writeElement( 'NbOfTxs', count( $this->aTransactionInformation ) );	// Anzahl der Transaktionen innerhalb eines PaymentInformation-Blocks
-		$this->xml->writeElement( 'CtrlSum', number_format( $this->TransactionCtrlSum, 2, '.', '' ) );	// ControlSum: Summe der Beträge aller Transaktionen
+		$this->xml->writeElement( 'CtrlSum', number_format( floatval($this->TransactionCtrlSum), 2, '.', '' ) );	// ControlSum: Summe der Beträge aller Transaktionen
 
 		// Diese Gruppe (PmtTpInf) ist entweder hier oder bei den einzelnen Transaktionen zu verwenden!!
 		$this->xml->startElement( 'PmtTpInf' );	// PaymentTypeInformation
@@ -249,7 +252,7 @@ class EBICS_Sepa {
 			$this->xml->endElement(); // PmtId
 			$this->xml->startElement( 'InstdAmt');	// Zahlbetrag
 			$this->xml->writeAttribute( 'Ccy', 'EUR' );
-			$this->xml->text( number_format( $this->aTransactionInformation[$i]->InstdAmt, 2, '.', '' ) );
+			$this->xml->text( number_format( floatval($this->aTransactionInformation[$i]->InstdAmt), 2, '.', '' ) );
 			$this->xml->endElement(); // InstdAmt
 //			$this->xml->writeElement( 'ChrgBr', 'SLEV' );	// ChargeBearer - Entgeltverrechnung --> nicht hier, sondern bei PaymentInformation verwenden!!
 
